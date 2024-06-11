@@ -215,6 +215,7 @@ type land_ice_atmos_boundary_type
    ! variables of this type are declared by coupler_main, allocated by flux_exchange_init.
 !quantities going from land+ice to atmos
    real, dimension(:,:),   pointer :: t              =>null() ! surface temperature for radiation calculations
+   real, dimension(:,:),   pointer :: t_ocean        =>null() ! surface temperature for radiation calculations !joseph
    real, dimension(:,:),   pointer :: u_ref          =>null() ! surface zonal wind (cjg: PBL depth mods) !bqx
    real, dimension(:,:),   pointer :: v_ref          =>null() ! surface meridional wind (cjg: PBL depth mods) !bqx
    real, dimension(:,:),   pointer :: t_ref          =>null() ! surface air temperature (cjg: PBL depth mods)
@@ -229,6 +230,9 @@ type land_ice_atmos_boundary_type
    real, dimension(:,:,:), pointer :: dt_tr          =>null() ! tracer tendency at the lowest level
    real, dimension(:,:),   pointer :: u_flux         =>null() ! zonal wind stress
    real, dimension(:,:),   pointer :: v_flux         =>null() ! meridional wind stress
+   real, dimension(:,:),   pointer :: wind           =>null()
+   real, dimension(:,:),   pointer :: thv_atm        =>null()
+   real, dimension(:,:),   pointer :: thv_surf       =>null()
    real, dimension(:,:),   pointer :: dtaudu         =>null() ! derivative of zonal wind stress w.r.t. the lowest zonal level wind speed
    real, dimension(:,:),   pointer :: dtaudv         =>null() ! derivative of meridional wind stress w.r.t. the lowest meridional level wind speed
    real, dimension(:,:),   pointer :: u_star         =>null() ! friction velocity
@@ -237,6 +241,7 @@ type land_ice_atmos_boundary_type
    real, dimension(:,:),   pointer :: shflx          =>null() ! sensible heat flux !miz
    real, dimension(:,:),   pointer :: lhflx          =>null() ! latent heat flux   !miz
    real, dimension(:,:),   pointer :: rough_mom      =>null() ! surface roughness (used for momentum)
+   real, dimension(:,:),   pointer :: rough_heat     =>null() ! surface roughness (used for heat) ! kgao
    real, dimension(:,:),   pointer :: frac_open_sea  =>null() ! non-seaice fraction (%)
    real, dimension(:,:,:), pointer :: data           =>null() !collective field for "named" fields above
    integer                         :: xtype                   !REGRID, REDIST or DIRECT
@@ -572,10 +577,10 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step, do_concurrent_ra
       ierr = check_nml_error(io, 'atmos_model_nml')
    endif
 !-----------------------------------------------------------------------
-   !call get_number_tracers(MODEL_ATMOS, num_tracers=ntracers)
+   call get_number_tracers(MODEL_ATMOS, num_tracers=ntracers)
    call atmosphere_resolution (nlon, nlat, global=.false.)
    call atmosphere_resolution (mlon, mlat, global=.true.)
-   !call alloc_atmos_data_type (nlon, nlat, Atmos)
+
    call alloc_atmos_data_type (nlon, nlat, ntracers, Atmos)
    call atmosphere_domain (Atmos%domain, Atmos%domain_for_read, Atmos%layout, Atmos%regional, &
                            Atmos%bounded_domain)
@@ -1064,6 +1069,7 @@ subroutine lnd_ice_atm_bnd_type_chksum(id, timestep, bnd_type)
     write(outunit,*) 'BEGIN CHECKSUM(lnd_ice_Atm_bnd_type):: ', id, timestep
 100 format("CHECKSUM::",A32," = ",Z20)
     write(outunit,100) 'lnd_ice_atm_bnd_type%t             ',mpp_chksum(bnd_type%t              )
+    write(outunit,100) 'lnd_ice_atm_bnd_type%t_ocean       ',mpp_chksum(bnd_type%t_ocean        )
     write(outunit,100) 'lnd_ice_atm_bnd_type%albedo        ',mpp_chksum(bnd_type%albedo         )
     write(outunit,100) 'lnd_ice_atm_bnd_type%albedo_vis_dir',mpp_chksum(bnd_type%albedo_vis_dir )
     write(outunit,100) 'lnd_ice_atm_bnd_type%albedo_nir_dir',mpp_chksum(bnd_type%albedo_nir_dir )
@@ -1076,6 +1082,10 @@ subroutine lnd_ice_atm_bnd_type_chksum(id, timestep, bnd_type)
     enddo
     write(outunit,100) 'lnd_ice_atm_bnd_type%u_flux        ',mpp_chksum(bnd_type%u_flux         )
     write(outunit,100) 'lnd_ice_atm_bnd_type%v_flux        ',mpp_chksum(bnd_type%v_flux         )
+
+    write(outunit,100) 'lnd_ice_atm_bnd_type%wind          ',mpp_chksum(bnd_type%wind           )
+    write(outunit,100) 'lnd_ice_atm_bnd_type%thv_atm       ',mpp_chksum(bnd_type%thv_atm        )
+    write(outunit,100) 'lnd_ice_atm_bnd_type%thv_surf      ',mpp_chksum(bnd_type%thv_surf       )
     write(outunit,100) 'lnd_ice_atm_bnd_type%dtaudu        ',mpp_chksum(bnd_type%dtaudu         )
     write(outunit,100) 'lnd_ice_atm_bnd_type%dtaudv        ',mpp_chksum(bnd_type%dtaudv         )
     write(outunit,100) 'lnd_ice_atm_bnd_type%u_star        ',mpp_chksum(bnd_type%u_star         )
